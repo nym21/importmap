@@ -98,40 +98,40 @@ impl ImportMap {
 
         let content = format!("{links}\n{script}");
 
-        replace_between_markers(html, "IMPORTMAP", &content)
+        Self::replace_between_markers(html, "IMPORTMAP", &content)
     }
-}
 
-fn replace_between_markers(html: &str, name: &str, content: &str) -> Option<String> {
-    let open = format!("<!-- {name} -->");
-    let close = format!("<!-- /{name} -->");
+    fn replace_between_markers(html: &str, name: &str, content: &str) -> Option<String> {
+        let open = format!("<!-- {name} -->");
+        let close = format!("<!-- /{name} -->");
 
-    let start_pos = html.find(&open)?;
-    let after_open = start_pos + open.len();
-    let end_pos = html[after_open..].find(&close)? + after_open;
+        let start_pos = html.find(&open)?;
+        let after_open = start_pos + open.len();
+        let end_pos = html[after_open..].find(&close)? + after_open;
 
-    // Detect indentation from the opening marker
-    let line_start = html[..start_pos].rfind('\n').map(|i| i + 1).unwrap_or(0);
-    let indent = &html[line_start..start_pos];
+        // Detect indentation from the opening marker
+        let line_start = html[..start_pos].rfind('\n').map(|i| i + 1).unwrap_or(0);
+        let indent = &html[line_start..start_pos];
 
-    // Indent content
-    let indented: String = content
-        .lines()
-        .map(|line| {
-            if line.is_empty() {
-                String::new()
-            } else {
-                format!("{indent}{line}")
-            }
-        })
-        .collect::<Vec<_>>()
-        .join("\n");
+        // Indent content
+        let indented: String = content
+            .lines()
+            .map(|line| {
+                if line.is_empty() {
+                    String::new()
+                } else {
+                    format!("{indent}{line}")
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
 
-    Some(format!(
-        "{}\n{}\n{}{}",
-        &html[..after_open],
-        indented,
-        indent,
-        &html[end_pos..]
-    ))
+        Some(format!(
+            "{}\n{}\n{}{}",
+            &html[..after_open],
+            indented,
+            indent,
+            &html[end_pos..]
+        ))
+    }
 }
