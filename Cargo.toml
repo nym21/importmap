@@ -1,6 +1,6 @@
 [package]
 name = "importmap"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "Generate import maps with hashed URLs for cache busting"
 homepage = "https://github.com/nym21/importmap"
