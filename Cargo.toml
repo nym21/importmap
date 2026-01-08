@@ -3,6 +3,9 @@ name = "importmap"
 version = "0.1.0"
 edition = "2024"
 description = "Generate import maps with hashed URLs for cache busting"
+package.homepage = "https://github.com/nym21/importmap"
+package.repository = "https://github.com/nym21/importmap"
+package.readme = "docs/README.md"
 license = "MIT"
 
 [dependencies]
