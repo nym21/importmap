@@ -12,6 +12,9 @@ const EXTENSIONS: &[&str] = &["js", "mjs", "css"];
 /// Hash length in the output (hex chars).
 const HASH_LEN: usize = 8;
 
+/// HTML marker name for import map section.
+const MARKER: &str = "IMPORTMAP";
+
 /// Import map structure matching the web standard.
 #[derive(Debug, Serialize)]
 pub struct ImportMap {
@@ -19,6 +22,13 @@ pub struct ImportMap {
 }
 
 impl ImportMap {
+    /// Create an empty import map (useful for dev mode).
+    pub fn empty() -> Self {
+        Self {
+            imports: BTreeMap::new(),
+        }
+    }
+
     /// Scan a directory and generate an import map.
     pub fn scan(dir: &Path, base_url: &str) -> io::Result<Self> {
         let mut imports = BTreeMap::new();
@@ -85,7 +95,13 @@ impl ImportMap {
 
     /// Update HTML content between `<!-- IMPORTMAP -->` and `<!-- /IMPORTMAP -->` markers.
     /// Inserts modulepreload links and the importmap script tag.
+    /// If the import map is empty (dev mode), clears the content between markers.
     pub fn update_html(&self, html: &str) -> Option<String> {
+        // Dev mode: clear importmap section
+        if self.imports.is_empty() {
+            return Self::replace_between_markers(html, "");
+        }
+
         let links: String = self
             .imports
             .values()
@@ -98,12 +114,12 @@ impl ImportMap {
 
         let content = format!("{script}\n{links}");
 
-        Self::replace_between_markers(html, "IMPORTMAP", &content)
+        Self::replace_between_markers(html, &content)
     }
 
-    fn replace_between_markers(html: &str, name: &str, content: &str) -> Option<String> {
-        let open = format!("<!-- {name} -->");
-        let close = format!("<!-- /{name} -->");
+    fn replace_between_markers(html: &str, content: &str) -> Option<String> {
+        let open = format!("<!-- {MARKER} -->");
+        let close = format!("<!-- /{MARKER} -->");
 
         let start_pos = html.find(&open)?;
         let after_open = start_pos + open.len();
