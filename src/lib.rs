@@ -96,7 +96,7 @@ impl ImportMap {
         let json = serde_json::to_string_pretty(self).ok()?;
         let script = format!("<script type=\"importmap\">\n{json}\n</script>");
 
-        let content = format!("{links}\n{script}");
+        let content = format!("{script}\n{links}");
 
         Self::replace_between_markers(html, "IMPORTMAP", &content)
     }
