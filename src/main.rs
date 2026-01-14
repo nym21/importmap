@@ -1,4 +1,4 @@
-use std::{env, fs, path::Path, process};
+use std::{env, path::Path, process};
 
 use importmap::ImportMap;
 
@@ -29,13 +29,9 @@ fn run(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let map = ImportMap::scan(dir, "")?;
-
-    let html = fs::read_to_string(&html_path)?;
-    let updated = map
-        .update_html(&html)
-        .ok_or("Missing <!-- MODULEPRELOAD --> or <!-- IMPORTMAP --> markers")?;
-    fs::write(&html_path, updated)?;
-    eprintln!("Updated {}", html_path.display());
+    if map.update_html_file(&html_path)? {
+        eprintln!("Updated {}", html_path.display());
+    }
 
     Ok(())
 }

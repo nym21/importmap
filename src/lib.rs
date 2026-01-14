@@ -93,10 +93,23 @@ impl ImportMap {
         Ok(Self { imports })
     }
 
-    /// Update HTML content between `<!-- IMPORTMAP -->` and `<!-- /IMPORTMAP -->` markers.
+    /// Update an HTML file in place between `<!-- IMPORTMAP -->` and `<!-- /IMPORTMAP -->` markers.
+    /// Returns `Ok(true)` if the file was modified, `Ok(false)` if unchanged.
+    pub fn update_html_file(&self, path: &Path) -> io::Result<bool> {
+        let html = fs::read_to_string(path)?;
+        match self.transform_html(&html) {
+            Some(updated) if updated != html => {
+                fs::write(path, updated)?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    /// Transform HTML content between `<!-- IMPORTMAP -->` and `<!-- /IMPORTMAP -->` markers.
     /// Inserts modulepreload links and the importmap script tag.
     /// If the import map is empty (dev mode), clears the content between markers.
-    pub fn update_html(&self, html: &str) -> Option<String> {
+    pub fn transform_html(&self, html: &str) -> Option<String> {
         // Dev mode: clear importmap section
         if self.imports.is_empty() {
             return Self::replace_between_markers(html, "");
