@@ -73,6 +73,11 @@ impl ImportMap {
             return;
         }
 
+        // Skip underscore-prefixed files (partials/internal)
+        if name.starts_with('_') {
+            return;
+        }
+
         let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else {
             return;
         };
