@@ -24,7 +24,7 @@ impl Deref for ImportMap {
 }
 
 impl ImportMap {
-    pub const EXTENSIONS: &[&str] = &["js", "mjs", "css", "json", "wasm"];
+    pub const EXTENSIONS: &[&str] = &["js", "mjs", "css"];
     pub const HASH_LEN: usize = 8;
     pub const MARKER_OPEN: &str = "<!-- IMPORTMAP -->";
     pub const MARKER_CLOSE: &str = "<!-- /IMPORTMAP -->";
@@ -67,14 +67,19 @@ impl ImportMap {
             return;
         }
 
-        // Skip development builds
+        // Skip development builds and test files
         let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-        if name.contains(".development.") || name.contains(".dev.") {
+        if name.contains(".development.") || name.contains(".dev.") || name.contains(".test.") {
             return;
         }
 
         // Skip underscore-prefixed files (partials/internal)
         if name.starts_with('_') {
+            return;
+        }
+
+        // Skip test files
+        if path.components().any(|c| c.as_os_str() == "tests") {
             return;
         }
 
@@ -142,17 +147,64 @@ impl ImportMap {
             return Self::replace_between_markers(html, "");
         }
 
-        let links: String = self
-            .0
-            .values()
-            .map(|url| format!(r#"<link rel="modulepreload" href="{url}">"#))
+        // Partition by file type
+        let (mut css, js): (BTreeMap<_, _>, Vec<_>) =
+            self.0.iter().fold((BTreeMap::new(), Vec::new()), |(mut css, mut js), (k, v)| {
+                match Path::new(k).extension().and_then(|e| e.to_str()) {
+                    Some("css") => { css.insert(k.clone(), v.clone()); }
+                    Some("js" | "mjs") => js.push((k, v)),
+                    _ => {}
+                }
+                (css, js)
+            });
+
+        // Only include CSS already in HTML (preserves order for cascade correctness)
+        let css_urls: Vec<_> = Self::extract_href_values(html, "stylesheet")
+            .into_iter()
+            .filter_map(|url| css.remove(&url))
+            .collect();
+
+        // Generate output
+        let stylesheets = css_urls
+            .iter()
+            .map(|url| format!(r#"<link rel="stylesheet" href="{url}">"#))
             .collect::<Vec<_>>()
             .join("\n");
 
-        let json = serde_json::to_string_pretty(&serde_json::json!({ "imports": &self.0 })).ok()?;
+        let js_map: BTreeMap<_, _> = js.iter().map(|(k, v)| (*k, *v)).collect();
+        let json = serde_json::to_string_pretty(&serde_json::json!({ "imports": js_map })).ok()?;
         let script = format!("<script type=\"importmap\">\n{json}\n</script>");
 
-        Self::replace_between_markers(html, &format!("{script}\n{links}"))
+        let preloads = js
+            .iter()
+            .map(|(_, url)| format!(r#"<link rel="modulepreload" href="{url}">"#))
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        let content = [stylesheets, script, preloads]
+            .into_iter()
+            .filter(|s| !s.is_empty())
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        Self::replace_between_markers(html, &content)
+    }
+
+    /// Extract href values from link tags with the given rel attribute.
+    fn extract_href_values(html: &str, rel: &str) -> Vec<String> {
+        let start = html.find(Self::MARKER_OPEN).unwrap_or(0);
+        let end = html.find(Self::MARKER_CLOSE).unwrap_or(html.len());
+
+        html[start..end]
+            .lines()
+            .filter(|line| line.contains(&format!(r#"rel="{rel}""#)) || line.contains(&format!(r#"rel='{rel}'"#)))
+            .filter_map(|line| {
+                let href_start = line.find("href=\"").or_else(|| line.find("href='"))? + 6;
+                let quote = line.as_bytes().get(href_start - 1).copied()? as char;
+                let href_end = line[href_start..].find(quote)?;
+                Some(line[href_start..href_start + href_end].to_string())
+            })
+            .collect()
     }
 
     fn replace_between_markers(html: &str, content: &str) -> Option<String> {
