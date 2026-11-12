@@ -1,5 +1,7 @@
 # importmap
 
+> **Archived.** importmap is no longer maintained. Its last release, 0.4.2, stays available on crates.io.
+
 Generate import maps with content-hashed URLs. No bundler required.
 
 ## Problem
